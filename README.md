@@ -1,46 +1,46 @@
 # SeismicX Fine-Tuning Skill
 
-让 Coding Agent 使用 **SeismicXM** 或 **PNSN** 完成地震波形数据检查、震相拾取微调和地震事件分类微调。
+Use a coding agent to inspect seismic waveform data and fine-tune **SeismicXM** or **PNSN** models for seismic event classification and phase picking.
 
-一句话即可发起任务：
+Start a complete task with one prompt:
 
-> 使用 `$seismicx-fine-tuning`，用我的三分量波形和 CSV 标签微调 SeismicXM 地震分类模型；先检查类别映射与数据泄漏，完成 dry-run 后再训练，并汇报 macro-F1、各类别指标和混淆矩阵。
+> Use `$seismicx-fine-tuning` to fine-tune a SeismicXM classifier with my three-component waveforms and CSV labels. Check the class mapping and split leakage, complete a dry run before training, and report macro-F1, per-class metrics, and the confusion matrix.
 
-本 Skill 基于以下项目：
+This skill is built around:
 
 - [cangyeone/seismicxm](https://github.com/cangyeone/seismicxm)
 - [cangyeone/pnsn_training_demo](https://github.com/cangyeone/pnsn_training_demo)
-- 可选公开数据：[cangyeone/Seismic-AI-Data](https://www.modelscope.cn/datasets/cangyeone/Seismic-AI-Data)
+- Optional public data: [cangyeone/Seismic-AI-Data](https://www.modelscope.cn/datasets/cangyeone/Seismic-AI-Data)
 
-整个训练工作流直接使用 SeismicXM 和 PNSN 的模型与代码，不使用 SeisBench。
+The workflow uses the native SeismicXM and PNSN implementations directly. It does not use SeisBench.
 
-## 能做什么
+## Capabilities
 
-| 任务 | 模型 | 典型用途 |
+| Task | Model | Typical use |
 |---|---|---|
-| 地震事件分类 | SeismicXM | 区域地震、爆破、噪声、低频事件或使用者自定义的任意事件类别 |
-| 震相拾取/检测 | PNSN | 使用轻量模型拾取 `Pg`、`Sg`、`Pn`、`Sn` |
-| 震相拾取/检测 | SeismicXM | 使用 SeismicXM 共享骨干网络拾取 `Pg`、`Sg`、`Pn`、`Sn` |
-| 迁移学习 | SeismicXM / PNSN | 从仓库提供的预训练模型或使用者自己的 checkpoint 开始微调 |
-| 数据适配 | — | 读取 CSV + HDF5、SeismicX bucketed HDF5、NPY 或 NPZ |
+| Seismic event classification | SeismicXM | Regional earthquakes, blasts, noise, low-frequency events, or any user-defined event classes |
+| Phase picking/detection | PNSN | A compact picker for `Pg`, `Sg`, `Pn`, and `Sn` |
+| Phase picking/detection | SeismicXM | A shared SeismicXM backbone for `Pg`, `Sg`, `Pn`, and `Sn` |
+| Transfer learning | SeismicXM / PNSN | Start from the supplied pretrained models or a user-provided checkpoint |
+| Data adaptation | — | CSV + HDF5, SeismicX bucketed HDF5, NPY, or NPZ |
 
-分类任务不绑定任何固定数据集，也不限定为二分类。使用者可以自行定义类别名称、数量和顺序。PNW 只是一个可选的公开数据示例。
+Classification is not tied to a fixed dataset or a fixed number of classes. Users may define the class names, class count, and class order. PNW is only an optional public-data example.
 
-## 1. 安装到 Coding Agent
+## 1. Install the skill in a coding agent
 
-### 方法一：让 Agent 自己安装
+### Option A: ask the agent to install it
 
-把下面这句话直接发给 Codex 或其他支持 `SKILL.md` 的 Coding Agent：
+Send this prompt to Codex or another coding agent that supports `SKILL.md`:
 
 ```text
-请把 https://github.com/cangyeone/seismicx-fine-tuning-skill 安装到当前用户的 Skills 目录，技能名保持为 seismicx-fine-tuning。安装后读取 SKILL.md，并告诉我如何使用 $seismicx-fine-tuning 发起训练任务。
+Install https://github.com/cangyeone/seismicx-fine-tuning-skill in my user-level skills directory under the name seismicx-fine-tuning. After installation, read SKILL.md and tell me how to invoke $seismicx-fine-tuning for a training task.
 ```
 
-安装完成后，建议新建一个任务或重启 Agent，使其重新扫描 Skills。
+After installation, start a new task or restart the agent so that it rescans the available skills.
 
-### 方法二：安装到 Codex 用户目录
+### Option B: install for the current Codex user
 
-用户级安装适合在多个项目中复用：
+A user-level installation makes the skill available across projects:
 
 ```bash
 mkdir -p ~/.codex/skills
@@ -48,15 +48,15 @@ git clone https://github.com/cangyeone/seismicx-fine-tuning-skill.git \
   ~/.codex/skills/seismicx-fine-tuning
 ```
 
-如果设置了自定义 `CODEX_HOME`，请把仓库克隆到：
+If you use a custom `CODEX_HOME`, clone the repository to:
 
 ```text
 $CODEX_HOME/skills/seismicx-fine-tuning
 ```
 
-### 方法三：安装到当前项目
+### Option C: install in one project
 
-项目级安装便于让团队在同一个代码仓库中共享 Skill：
+A project-level installation is useful when a team wants to share the skill with the project:
 
 ```bash
 mkdir -p .agents/skills
@@ -64,15 +64,15 @@ git clone https://github.com/cangyeone/seismicx-fine-tuning-skill.git \
   .agents/skills/seismicx-fine-tuning
 ```
 
-请确认最终目录中直接存在 `SKILL.md`：
+Confirm that `SKILL.md` is directly inside the installed skill directory:
 
 ```text
 .agents/skills/seismicx-fine-tuning/SKILL.md
 ```
 
-### 其他 Coding Agent
+### Other coding agents
 
-如果 Agent 支持 [Agent Skills](https://agentskills.io/) 或能够加载 `SKILL.md`，可以使用跨客户端的用户级目录：
+For agents that support the [Agent Skills](https://agentskills.io/) format, the cross-client user directory can be used:
 
 ```bash
 mkdir -p ~/.agents/skills
@@ -80,106 +80,106 @@ git clone https://github.com/cangyeone/seismicx-fine-tuning-skill.git \
   ~/.agents/skills/seismicx-fine-tuning
 ```
 
-也可以将本仓库完整复制到该 Agent 自己配置的 Skills 目录。不要只复制 `SKILL.md`，因为训练流程还会使用 `scripts/`、`references/` 和 `assets/`。不同客户端扫描的目录可能不同，请以该 Agent 的技能设置为准。
+You may also clone the repository into the client-specific skills directory configured by your agent. Keep the whole repository together: the workflow needs `SKILL.md`, `scripts/`, `references/`, and `assets/`. Skill discovery paths vary by client, so consult the client's skill settings when necessary.
 
-如果 Agent 没有自动发现 Skills 的机制，也可以在提示词中直接指定本仓库：
+If an agent cannot discover skills automatically, point it at the repository explicitly:
 
 ```text
-先克隆 https://github.com/cangyeone/seismicx-fine-tuning-skill，读取其中的 SKILL.md，并严格按照该 Skill 使用我的数据完成 SeismicXM 分类微调。
+Clone https://github.com/cangyeone/seismicx-fine-tuning-skill, read its SKILL.md, and follow that skill to fine-tune a SeismicXM classifier with my dataset.
 ```
 
-### 更新 Skill
+### Update the skill
 
-用户级安装：
+For a user-level Codex installation:
 
 ```bash
 git -C ~/.codex/skills/seismicx-fine-tuning pull --ff-only
 ```
 
-项目级安装：
+For a project-level installation:
 
 ```bash
 git -C .agents/skills/seismicx-fine-tuning pull --ff-only
 ```
 
-## 2. 在 Agent 中调用
+## 2. Invoke the skill
 
-推荐显式写出技能名：
-
-```text
-使用 $seismicx-fine-tuning，……
-```
-
-也可以使用自然语言描述任务。只要 Agent 已加载该 Skill，涉及 SeismicXM、PNSN、地震分类、Pg/Sg/Pn/Sn 拾取或地震波形迁移学习的请求都可以触发它。
-
-一次完整请求最好说明：
-
-- 任务是 `classification` 还是 `picking`；
-- 波形和 CSV 元数据的路径；
-- 分类标签列，或 Pg/Sg/Pn/Sn 到时样点列；
-- 同一事件的分组列，例如 `event_id`；
-- 使用 SeismicXM 还是 PNSN；
-- 是否有自己的预训练 checkpoint；
-- 训练设备、预算或 epoch 数等限制。
-
-信息不完整时，Agent 会先检查数据并从现有字段推断安全的默认值；涉及类别含义、分量顺序或震相语义等不能可靠推断的信息，应由使用者确认。
-
-## 3. 一句话任务示例
-
-### 使用自有数据做任意类别的地震分类
+Explicit invocation is recommended:
 
 ```text
-使用 $seismicx-fine-tuning，用 /data/my_waveforms.h5 和 /data/my_metadata.csv 微调 SeismicXM 分类模型，标签列是 event_type，事件分组列是 event_id；类别按数据统计后固定顺序，先检查数据、划分泄漏和波形形状，再 dry-run 和正式训练，输出 macro-F1、各类别 precision/recall/F1、混淆矩阵及可复现的训练记录。
+Use $seismicx-fine-tuning to ...
 ```
 
-类别可以是使用者自己的任意定义，例如 `regional_earthquake`、`quarry_blast`、`noise`、`low_frequency_event`，并不要求使用 PNW 的类别。
+Natural-language activation also works when the agent has loaded the skill. Requests involving SeismicXM, PNSN, seismic classification, Pg/Sg/Pn/Sn picking, or seismic waveform transfer learning should match the skill description.
 
-### 使用 PNSN 微调 Pg/Sg/Pn/Sn 拾取模型
+A useful request should provide as much of the following information as possible:
+
+- whether the task is `classification` or `picking`;
+- paths to the waveforms and CSV metadata;
+- the classification label column or Pg/Sg/Pn/Sn arrival-sample columns;
+- an event grouping column such as `event_id`;
+- the preferred model, SeismicXM or PNSN;
+- the path to an existing checkpoint, if any;
+- device, runtime, epoch, or compute-budget limits.
+
+When information is missing, the agent should inspect the data and infer only safe defaults. The user should confirm details that cannot be inferred reliably, especially class semantics, component order, waveform units, and phase meaning.
+
+## 3. One-prompt examples
+
+### Classify arbitrary event types in a custom dataset
 
 ```text
-使用 $seismicx-fine-tuning，用 /data/phases.h5 和 /data/phases.csv 微调 PNSN Pg/Sg/Pn/Sn 拾取模型；数据为 100 Hz 三分量波形，到时列为 pg_sample、sg_sample、pn_sample、sn_sample，先验证标签覆盖和事件级划分，再从 decoder-only 基线开始训练。
+Use $seismicx-fine-tuning with /data/my_waveforms.h5 and /data/my_metadata.csv to fine-tune a SeismicXM classifier. The label column is event_type and the event grouping column is event_id. Inspect and lock the class order, check split leakage and waveform shapes, run a small dry run, then train and report macro-F1, per-class precision/recall/F1, the confusion matrix, and reproducibility metadata.
 ```
 
-### 使用 SeismicXM 微调震相拾取模型
+The classes may use any ontology, for example `regional_earthquake`, `quarry_blast`, `noise`, and `low_frequency_event`. They do not need to match the PNW labels.
+
+### Fine-tune a PNSN Pg/Sg/Pn/Sn picker
 
 ```text
-使用 $seismicx-fine-tuning，用我的 100 Hz 三分量区域地震数据微调 SeismicXM 震相拾取模型，输出顺序固定为 background、Pg、Sg、Pn、Sn；先做小样本 dry-run，再比较 head 与 head-last-block 两种微调策略。
+Use $seismicx-fine-tuning with /data/phases.h5 and /data/phases.csv to fine-tune the PNSN Pg/Sg/Pn/Sn picker. The data contain 100 Hz three-component waveforms and the arrival columns are pg_sample, sg_sample, pn_sample, and sn_sample. Validate phase coverage and event-level splits, run a dry run, and start with a decoder-only baseline.
 ```
 
-### 使用自己的已有模型继续微调
+### Fine-tune a SeismicXM phase picker
 
 ```text
-使用 $seismicx-fine-tuning，从 /models/my_seismicxm.pt 开始，用 /data/new_region.csv 和对应波形适配新区域；先核对 checkpoint 架构、类别顺序和输入长度，不覆盖原模型，所有结果写到 /outputs/new_region_run。
+Use $seismicx-fine-tuning to adapt SeismicXM to my 100 Hz three-component regional dataset. Keep the phase output order background, Pg, Sg, Pn, Sn. Run a small dry run first, then compare head and head-last-block fine-tuning with the same split and seed.
 ```
 
-### 使用公开数据做一次可复现实验
+### Continue from an existing checkpoint
 
 ```text
-使用 $seismicx-fine-tuning，从 Seismic-AI-Data 中只下载完成任务所需的子集，用 SeismicXM 做分类微调；下载大文件前先告诉我大小并确认磁盘空间，先完成元数据检查和 dry-run。
+Use $seismicx-fine-tuning to adapt /models/my_seismicxm.pt to /data/new_region.csv and its waveform files. Verify the checkpoint architecture, class order, and input length first. Do not overwrite the source checkpoint, and write all results to /outputs/new_region_run.
 ```
 
-如果希望使用 PNW，可以明确补充“使用 PNW 的 `source_type` 做 earthquake/explosion 示例”。这只是公开数据演示，不是分类功能的固定配置。
+### Use an optional public dataset
 
-## 4. Agent 会执行什么
+```text
+Use $seismicx-fine-tuning to download only the required subset of Seismic-AI-Data and fine-tune a SeismicXM classifier. Report the download size and check available disk space before downloading large waveform files. Complete metadata validation and a dry run before training.
+```
 
-正常情况下，Agent 会按以下顺序工作：
+To run the PNW example specifically, add: "Use PNW `source_type` for an earthquake/explosion classification example." PNW is an example, not a fixed classification configuration.
 
-1. 检查任务、类别或震相定义、采样率、分量顺序、窗口长度和 checkpoint。
-2. 检查本地数据，避免无必要地下载大型公开数据。
-3. 准备固定版本的 SeismicXM/PNSN 上游代码和所需模型权重。
-4. 将 CSV 规范化为 manifest，并按事件或震源分组划分数据集。
-5. 检查类别缺失、标签错误、事件泄漏、波形键、形状以及 NaN/Inf。
-6. 使用真实 checkpoint 和小样本执行 `--dry-run`，核对输入输出形状及可训练参数。
-7. 从冻结任务头或 decoder 的基线开始，再根据验证结果决定是否扩大解冻范围。
-8. 保存模型、指标、参数、数据和 checkpoint 哈希，并区分 smoke test 与正式实验。
+## 4. What the agent should do
 
-Agent 不应在未确认磁盘空间时下载数十 GB 的波形文件，也不应把训练集、验证集或同一事件产生的多个窗口随机打散到不同分区。
+The expected workflow is:
 
-## 5. 数据格式
+1. Confirm the task, class or phase definitions, sample rate, component order, window length, and checkpoint.
+2. Inspect local data before considering any public-data download.
+3. Prepare pinned SeismicXM/PNSN upstream code and only the required checkpoint.
+4. Normalize the CSV into a manifest and split by event or source identity.
+5. Check missing classes, label coverage, group leakage, waveform keys, tensor shapes, and NaN/Inf values.
+6. Run `--dry-run` with the real checkpoint and a small sample cap to verify input/output shapes and trainable parameters.
+7. Start with a frozen task-head or decoder baseline, and unfreeze more of the network only when validation results justify it.
+8. Save model weights, metrics, arguments, source revisions, and hashes, and distinguish a smoke test from a completed experiment.
 
-### 分类 manifest
+The agent should not download waveform files that are tens of gigabytes without checking disk space and user intent. It should not randomly distribute traces, windows, or augmentations from the same event across train, validation, and test partitions.
 
-最小示例：
+## 5. Data format
+
+### Classification manifest
+
+Minimal example:
 
 ```csv
 waveform_path,label,source_group,split,sampling_rate
@@ -188,9 +188,9 @@ waveforms/a002.npy,quarry_blast,event_002,val,100
 waveforms/a003.npy,noise,event_003,test,100
 ```
 
-也可以保留原始标签列，例如 `event_type`，然后让 Agent 或 `prepare_manifest.py` 将它映射到规范列 `label`。
+An existing label column such as `event_type` may be retained and mapped to the canonical `label` column with `prepare_manifest.py`.
 
-### 震相拾取 manifest
+### Phase-picking manifest
 
 ```csv
 waveform_path,source_group,split,sampling_rate,pg_sample,sg_sample,pn_sample,sn_sample
@@ -198,53 +198,53 @@ waveforms/e001.npy,event_001,train,100,1030,2280,,
 waveforms/e002.npy,event_002,val,100,,,1850,4320
 ```
 
-震相到时应使用**样点索引**，不是秒。目标通道顺序固定为：
+Arrival values must be **sample indices**, not seconds. The target-channel order is fixed:
 
 ```text
 background, Pg, Sg, Pn, Sn
 ```
 
-### 波形存储
+### Waveform storage
 
-支持：
+Supported layouts include:
 
-- 一个共享 HDF5，通过 `trace_name` 或 `hdf5_key` 定位波形；
-- SeismicX bucketed HDF5，例如 `bucket4$0,:3,:15001`；
-- 每行一个 `.h5`、`.hdf5`、`.npy` 或 `.npz` 文件；
-- `(channels, samples)` 或 `(samples, channels)` 排列。
+- one shared HDF5 file addressed by `trace_name` or `hdf5_key`;
+- SeismicX bucketed HDF5 addresses such as `bucket4$0,:3,:15001`;
+- one `.h5`, `.hdf5`, `.npy`, or `.npz` file per manifest row;
+- waveform arrays in `(channels, samples)` or `(samples, channels)` order.
 
-预训练模型默认使用 100 Hz、三分量输入。当前脚本不会把非 100 Hz 数据悄悄当作 100 Hz 使用；应先对波形和到时样点进行一致的显式重采样，并记录实际分量顺序。
+The supplied pretrained models expect 100 Hz three-component inputs by default. The scripts do not silently reinterpret non-100 Hz data as 100 Hz. Resample the waveform and every arrival index together, and record the actual component order.
 
-更完整的数据约定见 [`references/data-contract.md`](references/data-contract.md)。
+See [`references/data-contract.md`](references/data-contract.md) for the complete data contract.
 
-## 6. 手动运行
+## 6. Manual workflow
 
-Skill 的主要用途是让 Agent 组织工作流。研究者也可以手动执行其中的脚本。
+The primary use case is to let an agent organize the workflow, but every bundled script can also be run manually.
 
-### 6.1 使用已有 Conda 环境
+### 6.1 Use an existing Conda environment
 
-先进入已安装 PyTorch 等依赖的环境：
+Activate an environment that already contains PyTorch and the required libraries:
 
 ```bash
 conda activate YOUR_ENV
 python -c "import torch, numpy, h5py, einops; print(torch.__version__)"
 ```
 
-缺少依赖时再安装：
+Install only missing dependencies:
 
 ```bash
 python -m pip install -r /path/to/seismicx-fine-tuning/requirements.txt
 ```
 
-下面用变量表示 Skill 的实际路径：
+The examples below use a variable for the installed skill directory:
 
 ```bash
 SEISMICX_SKILL=/path/to/seismicx-fine-tuning
 ```
 
-### 6.2 准备上游代码和模型
+### 6.2 Prepare upstream code and checkpoints
 
-只准备需要的模型代码。例如只做 SeismicXM 分类：
+Prepare only the model code required by the task. For a SeismicXM-only experiment:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/setup_workspace.py" \
@@ -252,13 +252,13 @@ python "$SEISMICX_SKILL/scripts/setup_workspace.py" \
   --components seismicxm
 ```
 
-查看可用 checkpoint：
+List available checkpoints:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/download_models.py" --list
 ```
 
-下载 SeismicXM 分类 checkpoint：
+Download the SeismicXM classification checkpoint:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/download_models.py" \
@@ -266,7 +266,7 @@ python "$SEISMICX_SKILL/scripts/download_models.py" \
   --output-dir checkpoints
 ```
 
-PNSN 模型较小，已经包含在仓库中，可复制到实验目录：
+The compact PNSN checkpoint is bundled with the skill and can be copied into the experiment directory:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/download_models.py" \
@@ -274,11 +274,11 @@ python "$SEISMICX_SKILL/scripts/download_models.py" \
   --output-dir checkpoints
 ```
 
-也可以直接把自己的 checkpoint 路径传给训练脚本。不要使用来源不可信的 pickle 权重。
+A compatible user-provided checkpoint may be passed directly to a training command. Do not load untrusted pickle checkpoints.
 
-### 6.3 准备并检查分类数据
+### 6.3 Prepare and validate classification data
 
-假设原始标签列是 `event_type`，事件标识列是 `event_id`：
+Assume that the source label column is `event_type` and the event identifier is `event_id`:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/prepare_manifest.py" \
@@ -288,7 +288,7 @@ python "$SEISMICX_SKILL/scripts/prepare_manifest.py" \
   --group-column event_id
 ```
 
-验证 manifest 和部分真实波形：
+Validate the manifest and a small number of real waveforms:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/validate_manifest.py" \
@@ -298,9 +298,9 @@ python "$SEISMICX_SKILL/scripts/validate_manifest.py" \
   --check-waveforms 8
 ```
 
-### 6.4 微调任意类别的 SeismicXM 分类模型
+### 6.4 Fine-tune a SeismicXM classifier with arbitrary classes
 
-先执行 dry-run：
+Run a dry run first:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/train_seismicxm.py" \
@@ -319,9 +319,9 @@ python "$SEISMICX_SKILL/scripts/train_seismicxm.py" \
   --dry-run
 ```
 
-把 `--classes` 后面的值替换为自己的类别，并按需要固定类别顺序。如果省略 `--classes`，脚本会从 `label` 列收集类别并按字符串排序。
+Replace the values after `--classes` with the dataset's actual class names and preferred order. If `--classes` is omitted, the script collects values from `label` and sorts them lexicographically.
 
-确认 dry-run 的形状、类别和参数量无误后，移除 `--dry-run`、`--max-train-samples` 和 `--max-val-samples`，再开始正式训练：
+After confirming the shapes, class order, and parameter counts, remove `--dry-run`, `--max-train-samples`, and `--max-val-samples` for the full training run:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/train_seismicxm.py" \
@@ -340,9 +340,9 @@ python "$SEISMICX_SKILL/scripts/train_seismicxm.py" \
   --lr 1e-3
 ```
 
-建议先比较 `head`，再根据验证集结果尝试 `head-last-block` 或 `all`。扩大解冻范围时应降低学习率，并保持相同的数据划分、类别顺序和随机种子。
+Establish the `head` baseline first, then compare `head-last-block` or `all` if validation results justify broader fine-tuning. Lower the learning rate when unfreezing more of the backbone, and keep the split, class order, and seed fixed across comparisons.
 
-### 6.5 微调 PNSN 震相拾取模型
+### 6.5 Fine-tune the PNSN phase picker
 
 ```bash
 python "$SEISMICX_SKILL/scripts/setup_workspace.py" \
@@ -362,9 +362,9 @@ python "$SEISMICX_SKILL/scripts/train_pnsn.py" \
   --dry-run
 ```
 
-确认后移除样本上限和 `--dry-run`。PNSN 可训练模块包括 `encoder`、`rnns` 和 `decoder`，也可以使用 `--trainable all`。
+Remove the sample caps and `--dry-run` after validation. PNSN training can select `encoder`, `rnns`, `decoder`, a comma-separated combination, or `all`.
 
-### 6.6 微调 SeismicXM 震相拾取模型
+### 6.6 Fine-tune the SeismicXM phase picker
 
 ```bash
 python "$SEISMICX_SKILL/scripts/train_seismicxm.py" \
@@ -382,9 +382,9 @@ python "$SEISMICX_SKILL/scripts/train_seismicxm.py" \
   --dry-run
 ```
 
-### 6.7 可选：从 ModelScope 下载公开子集
+### 6.7 Optionally download a public ModelScope subset
 
-只下载明确需要的路径：
+Download explicit paths only:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/download_modelscope.py" \
@@ -392,11 +392,11 @@ python "$SEISMICX_SKILL/scripts/download_modelscope.py" \
   --local-dir data/seismic-ai-data
 ```
 
-PNW 的 HDF5 波形约 62.7 GiB，下载时需要显式添加 `--allow-large`。不要默认下载整个 Seismic-AI-Data；它是一个包含多个数据集的大型集合。
+The PNW HDF5 waveform file is approximately 62.7 GiB and requires the explicit `--allow-large` flag. Do not download the entire Seismic-AI-Data collection by default; it contains multiple large datasets.
 
-## 7. 输出结果
+## 7. Training outputs
 
-训练目录至少包含：
+A completed training directory contains at least:
 
 ```text
 outputs/experiment/
@@ -405,50 +405,50 @@ outputs/experiment/
 └── run.json
 ```
 
-- `best.pt`：验证损失最优的模型参数；
-- `last.pt`：最后一个 epoch 的模型参数；
-- `run.json`：输入参数、上游代码版本、checkpoint 与 manifest 哈希、可训练参数量及每个 epoch 的验证指标。
+- `best.pt`: model parameters at the best validation loss;
+- `last.pt`: model parameters from the final epoch;
+- `run.json`: input arguments, upstream revision, checkpoint and manifest hashes, parameter counts, and validation history.
 
-分类验证指标包含 accuracy、macro precision/recall/F1、各类别 precision/recall/F1 和混淆矩阵。震相拾取验证包含各震相的位置误差及指定容差内的召回率。
+Classification validation includes accuracy, macro precision/recall/F1, per-class precision/recall/F1, and the confusion matrix. Phase-picking validation includes per-phase position error and recall within the configured tolerance.
 
-正式科研结果还应在独立测试集上评估。面向连续地震监测时，还需要报告连续数据中的误报率、检出率、到时残差以及跨台站、时间和区域的稳定性，不能只用窗口级准确率代替运行性能。
+Research results should also be evaluated on an untouched test set. Before operational continuous monitoring, measure false alarms, detection probability, timing residuals, and stability across stations, time periods, and regions. Window-level accuracy alone is not an operational evaluation.
 
-## 8. 常见问题
+## 8. Frequently asked questions
 
-### 分类是否只能使用 PNW？
+### Is classification limited to PNW?
 
-不是。分类数据集、类别数量、类别名称和顺序均可由使用者提供。PNW 只是公开数据中的一个二分类演示。
+No. Users control the classification dataset, number of classes, class names, and class order. PNW is only a public binary-classification example.
 
-### 是否使用 SeisBench？
+### Does this skill use SeisBench?
 
-不使用。本 Skill 直接调用 SeismicXM/PNSN 模型，并使用仓库自带的数据读取、manifest、训练和验证脚本。
+No. It calls the SeismicXM and PNSN models directly and uses the manifest, data-loading, training, and validation scripts bundled in this repository.
 
-### 数据不是 100 Hz 怎么办？
+### What if the data are not sampled at 100 Hz?
 
-先对波形做显式重采样，并同步换算所有震相到时样点。不要只修改 CSV 中的采样率字段。
+Resample the waveforms explicitly and transform all arrival-sample indices with the same factor. Do not change only the sample-rate value in the CSV.
 
-### 显存不足怎么办？
+### What if GPU memory is insufficient?
 
-先减小 `--batch-size`，选择 `--variant tinny` 或使用更轻量的 PNSN。执行正式训练前始终保留一次小样本 dry-run。
+Reduce `--batch-size`, try the SeismicXM `tinny` variant, or use the compact PNSN picker. Always keep a small dry run before the full experiment.
 
-### 为什么必须按事件分组划分？
+### Why are event-group splits required?
 
-同一事件的多个台站记录、裁窗或增强样本如果同时进入训练集和验证/测试集，会造成数据泄漏并高估性能。默认优先使用 `event_id`、`source_id` 或 `source_group` 划分。
+If multiple station traces, windows, or augmentations from the same event appear in both training and validation/test data, leakage can substantially inflate measured performance. Prefer `event_id`, `source_id`, or `source_group` as the grouping key.
 
-### P/S 标签能否直接当作 Pg/Sg？
+### Can generic P/S labels be treated as Pg/Sg?
 
-只有在区域数据中 P/S 的科学含义确实对应 Pg/Sg 时才可以。对于远震或已经区分震相的研究，应使用明确的 Pg/Sg/Pn/Sn 标签，并加 `--no-regional-ps-fallback` 禁用自动回退。
+Only when the scientific meaning of P/S in a regional dataset genuinely corresponds to Pg/Sg. For teleseismic or phase-specific studies, use explicit Pg/Sg/Pn/Sn labels and pass `--no-regional-ps-fallback`.
 
-## 9. 仓库结构
+## 9. Repository layout
 
 ```text
 seismicx-fine-tuning-skill/
-├── SKILL.md                    # Agent 执行规范
-├── agents/openai.yaml          # Agent UI 元数据
-├── scripts/                    # 下载、数据验证和训练入口
-├── references/                 # 数据、模型与评估约定
-├── assets/models/pnsn.v3.pt    # 随仓库提供的小型 PNSN 权重
+├── SKILL.md                    # Agent execution instructions
+├── agents/openai.yaml          # Agent UI metadata
+├── scripts/                    # Download, validation, and training entry points
+├── references/                 # Data, model, and evaluation contracts
+├── assets/models/pnsn.v3.pt    # Bundled compact PNSN checkpoint
 └── requirements.txt
 ```
 
-模型来源、固定版本、校验值和许可证说明见 [`references/model-sources.md`](references/model-sources.md)。使用公开数据或模型前，请同时检查原始项目和数据子集的许可证与引用要求。
+See [`references/model-sources.md`](references/model-sources.md) for source revisions, checksums, and licensing notes. Review the original model and dataset licenses and citation requirements before redistributing or using selected public assets.
