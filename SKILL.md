@@ -1,6 +1,6 @@
 ---
 name: seismicx-fine-tuning
-description: Prepare seismic waveform datasets and fine-tune, validate, or compare SeismicXM and PNSN models for phase picking/detection (Pg, Sg, Pn, Sn) and seismic event classification. Use for custom HDF5/NPY/NPZ datasets, SeismicX bucketed HDF5 metadata, the ModelScope cangyeone/Seismic-AI-Data collection, PNW earthquake/explosion classification, pretrained-checkpoint adaptation, frozen-head/full-model training, and reproducible seismic ML evaluation.
+description: Prepare seismic waveform datasets and fine-tune, validate, or compare SeismicXM and PNSN models for phase picking/detection (Pg, Sg, Pn, Sn) and seismic event classification. Use for arbitrary user-defined classification labels, custom HDF5/NPY/NPZ datasets, SeismicX bucketed HDF5 metadata, selected subsets of the ModelScope cangyeone/Seismic-AI-Data collection (including PNW as an optional example), pretrained-checkpoint adaptation, frozen-head/full-model training, and reproducible seismic ML evaluation.
 ---
 
 # SeismicX Fine-Tuning
