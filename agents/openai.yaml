@@ -1,0 +1,4 @@
+interface:
+  display_name: "SeismicX Fine-Tuning"
+  short_description: "Fine-tune seismic pickers and classifiers"
+  default_prompt: "Use $seismicx-fine-tuning to prepare waveform data and fine-tune a SeismicXM classifier or a SeismicXM/PNSN phase picker."
