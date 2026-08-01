@@ -25,13 +25,9 @@ The bundled PNSN base checkpoint comes from
 controlled checkpoints are published under CC BY 4.0. Preserve attribution,
 the source URL, and the adjacent license file when redistributing it.
 
-SeismicXM checkpoints are fetched from the upstream GitHub LFS objects. The PNW
-transfer checkpoints are fetched from the Google Drive model zoo linked by the
-SeismicXM repository:
-
-`https://drive.google.com/drive/folders/12cKctQFGZg4kqRQqMhdq1VGcDOYqUafG?usp=sharing`
-
-Always compute and record the actual SHA-256 after a Google Drive download.
+SeismicXM checkpoints are fetched from the upstream GitHub LFS objects. Always
+compute and record the actual SHA-256 for a user-provided or manually downloaded
+checkpoint.
 
 ## Dataset
 

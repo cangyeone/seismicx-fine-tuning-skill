@@ -31,8 +31,6 @@ Require the window length to be divisible by 64.
 - `seismicxm-middle`: general transfer starting point.
 - `seismicxm-classification`: upstream classification-tuned checkpoint; replace
   the head for a new label ontology.
-- `transfer-pnw-balanced-200`: useful PNW-domain initialization from the public
-  Google Drive model zoo.
 - `seismicxm-tiny`: low-resource smoke tests or experiments; pass
   `--variant tinny`.
 
@@ -41,17 +39,17 @@ that order explicitly with `--classes` and `--keep-classification-head`.
 
 ## Classification recipe
 
-Dry-run a PNW binary classifier:
+Dry-run a classifier with user-defined classes:
 
 ```bash
 python <skill>/scripts/train_seismicxm.py \
   --task classification \
   --seismicxm-repo upstream/seismicxm \
-  --checkpoint checkpoints/seismicxm.middle.pt \
-  --metadata work/pnw.binary.csv \
-  --waveform-h5 data/seismic-ai-data/PNW/PNW.hdf5 \
-  --output-dir outputs/pnw-head \
-  --classes earthquake explosion \
+  --checkpoint checkpoints/seismicxm.middle.classification.pt \
+  --metadata work/classification.csv \
+  --waveform-h5 data/waveforms.hdf5 \
+  --output-dir outputs/classifier-head \
+  --classes class_a class_b class_c \
   --trainable head \
   --class-balance weighted \
   --max-train-samples 64 \

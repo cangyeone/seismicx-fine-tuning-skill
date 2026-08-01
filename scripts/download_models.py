@@ -6,14 +6,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import shutil
-import sys
 import urllib.request
 from pathlib import Path
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 SEISMICXM_REVISION = "2d8077c62b6600e94d71a512b704b6fd6902f91d"
-DRIVE_FOLDER = "https://drive.google.com/drive/folders/12cKctQFGZg4kqRQqMhdq1VGcDOYqUafG?usp=sharing"
 MODELS = {
     "pnsn-v3": {
         "filename": "pnsn.v3.pt",
@@ -38,16 +36,6 @@ MODELS = {
         "url": f"https://github.com/cangyeone/seismicxm/raw/{SEISMICXM_REVISION}/ckpt/seismicxm.tinny.pt",
         "sha256": "5139a755a1db98c7483d0e95bedbeb5e2185bb5a8ebd770ab3d3fca6b669c9f9",
         "size": 34377834,
-    },
-    "transfer-pnw-200": {
-        "filename": "transfer.pnw.200.pt",
-        "gdrive_id": "1HWXBQEf4zS1SclD9P7ZICiGv0xLnV-93",
-        "size": 207707668,
-    },
-    "transfer-pnw-balanced-200": {
-        "filename": "transfer.pnw.balanced.200.pt",
-        "gdrive_id": "1MdeBPbEBgk8m-TZhQ9E7zvEHX1MbX2tD",
-        "size": 207709883,
     },
 }
 
@@ -76,7 +64,6 @@ def main() -> None:
     if args.list or not args.model:
         for name, item in MODELS.items():
             print(f"{name:31} {item['size'] / 1024**2:8.1f} MiB  {item['filename']}")
-        print(f"Google Drive model zoo: {DRIVE_FOLDER}")
         if not args.model:
             return
 
@@ -96,16 +83,8 @@ def main() -> None:
         if not source.is_file():
             raise SystemExit(f"Bundled checkpoint is missing: {source}")
         shutil.copy2(source, temporary)
-    elif "url" in item:
-        download_url(str(item["url"]), temporary)
     else:
-        try:
-            import gdown
-        except ImportError as exc:
-            raise SystemExit("Google Drive downloads require: pip install gdown>=5.2") from exc
-        result = gdown.download(id=str(item["gdrive_id"]), output=str(temporary), quiet=False)
-        if not result:
-            raise SystemExit(f"Google Drive download failed. Open the model zoo manually: {DRIVE_FOLDER}")
+        download_url(str(item["url"]), temporary)
     actual_size = temporary.stat().st_size
     expected_size = int(item["size"])
     if actual_size != expected_size:

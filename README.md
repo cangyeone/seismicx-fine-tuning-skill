@@ -22,9 +22,9 @@ The workflow uses the native SeismicXM and PNSN implementations directly. It doe
 | Phase picking/detection | PNSN | A compact picker for `Pg`, `Sg`, `Pn`, and `Sn` |
 | Phase picking/detection | SeismicXM | A shared SeismicXM backbone for `Pg`, `Sg`, `Pn`, and `Sn` |
 | Transfer learning | SeismicXM / PNSN | Start from the supplied pretrained models or a user-provided checkpoint |
-| Data adaptation | — | CSV + HDF5, SeismicX bucketed HDF5, NPY, or NPZ |
+| Data adaptation | — | User-defined layouts through an adapter, with direct support for common CSV/HDF5/NPY/NPZ layouts |
 
-Classification is not tied to a fixed dataset or a fixed number of classes. Users may define the class names, class count, and class order. PNW is only an optional public-data example.
+Users provide their native data organization and label ontology. The agent inspects representative records and either uses a bundled loader or creates a documented adapter without requiring the source dataset to be reorganized.
 
 ## 1. Install the skill in a coding agent
 
@@ -115,7 +115,8 @@ Natural-language activation also works when the agent has loaded the skill. Requ
 A useful request should provide as much of the following information as possible:
 
 - whether the task is `classification` or `picking`;
-- paths to the waveforms and CSV metadata;
+- paths to the dataset and representative metadata or waveform records;
+- a description of the native data layout, when available;
 - the classification label column or Pg/Sg/Pn/Sn arrival-sample columns;
 - an event grouping column such as `event_id`;
 - the preferred model, SeismicXM or PNSN;
@@ -129,10 +130,10 @@ When information is missing, the agent should inspect the data and infer only sa
 ### Classify arbitrary event types in a custom dataset
 
 ```text
-Use $seismicx-fine-tuning with /data/my_waveforms.h5 and /data/my_metadata.csv to fine-tune a SeismicXM classifier. The label column is event_type and the event grouping column is event_id. Inspect and lock the class order, check split leakage and waveform shapes, run a small dry run, then train and report macro-F1, per-class precision/recall/F1, the confusion matrix, and reproducibility metadata.
+Use $seismicx-fine-tuning to inspect the native format under /data/my_dataset and fine-tune a SeismicXM classifier. The labels describe event type and records from the same event must stay in the same split. Reuse a bundled loader if compatible; otherwise create and test a non-destructive data adapter. Lock the class order, check split leakage and waveform shapes, run a small dry run, then train and report macro-F1, per-class precision/recall/F1, the confusion matrix, and reproducibility metadata.
 ```
 
-The classes may use any ontology, for example `regional_earthquake`, `quarry_blast`, `noise`, and `low_frequency_event`. They do not need to match the PNW labels.
+The classes may use any user-defined ontology, for example `regional_earthquake`, `quarry_blast`, `noise`, and `low_frequency_event`.
 
 ### Fine-tune a PNSN Pg/Sg/Pn/Sn picker
 
@@ -158,7 +159,7 @@ Use $seismicx-fine-tuning to adapt /models/my_seismicxm.pt to /data/new_region.c
 Use $seismicx-fine-tuning to download only the required subset of Seismic-AI-Data and fine-tune a SeismicXM classifier. Report the download size and check available disk space before downloading large waveform files. Complete metadata validation and a dry run before training.
 ```
 
-To run the PNW example specifically, add: "Use PNW `source_type` for an earthquake/explosion classification example." PNW is an example, not a fixed classification configuration.
+For example, the public PNW subset can be used to demonstrate an earthquake/explosion classification run with the `source_type` labels.
 
 ## 4. What the agent should do
 
@@ -167,15 +168,24 @@ The expected workflow is:
 1. Confirm the task, class or phase definitions, sample rate, component order, window length, and checkpoint.
 2. Inspect local data before considering any public-data download.
 3. Prepare pinned SeismicXM/PNSN upstream code and only the required checkpoint.
-4. Normalize the CSV into a manifest and split by event or source identity.
-5. Check missing classes, label coverage, group leakage, waveform keys, tensor shapes, and NaN/Inf values.
+4. Inspect the native data layout; use a bundled loader when compatible or create a documented adapter in the experiment workspace.
+5. Build group-safe partitions and check missing classes, label coverage, leakage, waveform access, tensor shapes, and NaN/Inf values.
 6. Run `--dry-run` with the real checkpoint and a small sample cap to verify input/output shapes and trainable parameters.
 7. Start with a frozen task-head or decoder baseline, and unfreeze more of the network only when validation results justify it.
 8. Save model weights, metrics, arguments, source revisions, and hashes, and distinguish a smoke test from a completed experiment.
 
 The agent should not download waveform files that are tens of gigabytes without checking disk space and user intent. It should not randomly distribute traces, windows, or augmentations from the same event across train, validation, and test partitions.
 
-## 5. Data format
+## 5. User-defined data and built-in formats
+
+The dataset does not need to be converted into a prescribed on-disk layout. The agent should first inspect the user's native format and preserve the source data. If it differs from the bundled loader, the agent can create either:
+
+- a manifest adapter that points to the original waveform records; or
+- a dataset wrapper that returns model-ready `waveform` and `target` tensors.
+
+Every adapter should document waveform addressing, tensor layout, sample rate, units, component order, label mapping, event grouping, filtering, and resampling. It should be tested on representative records before training.
+
+The formats below are built-in fast paths.
 
 ### Classification manifest
 
@@ -204,7 +214,7 @@ Arrival values must be **sample indices**, not seconds. The target-channel order
 background, Pg, Sg, Pn, Sn
 ```
 
-### Waveform storage
+### Built-in waveform storage
 
 Supported layouts include:
 
@@ -276,7 +286,7 @@ python "$SEISMICX_SKILL/scripts/download_models.py" \
 
 A compatible user-provided checkpoint may be passed directly to a training command. Do not load untrusted pickle checkpoints.
 
-### 6.3 Prepare and validate classification data
+### 6.3 Prepare and validate classification data with the built-in manifest path
 
 Assume that the source label column is `event_type` and the event identifier is `event_id`:
 
@@ -384,7 +394,7 @@ python "$SEISMICX_SKILL/scripts/train_seismicxm.py" \
 
 ### 6.7 Optionally download a public ModelScope subset
 
-Download explicit paths only:
+Download explicit paths only. The following is a classification-data example:
 
 ```bash
 python "$SEISMICX_SKILL/scripts/download_modelscope.py" \
@@ -414,10 +424,6 @@ Classification validation includes accuracy, macro precision/recall/F1, per-clas
 Research results should also be evaluated on an untouched test set. Before operational continuous monitoring, measure false alarms, detection probability, timing residuals, and stability across stations, time periods, and regions. Window-level accuracy alone is not an operational evaluation.
 
 ## 8. Frequently asked questions
-
-### Is classification limited to PNW?
-
-No. Users control the classification dataset, number of classes, class names, and class order. PNW is only a public binary-classification example.
 
 ### Does this skill use SeisBench?
 

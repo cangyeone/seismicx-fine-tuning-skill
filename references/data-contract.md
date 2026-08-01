@@ -2,11 +2,41 @@
 
 ## Contents
 
+- User-defined formats
 - Supported storage
 - Manifest columns
 - Phase labels
 - Splitting and preprocessing
-- PNW recipe
+
+## User-defined formats
+
+Accept the user's native data organization as the source of truth. Inspect a
+small representative sample, document its waveform addressing, tensor layout,
+metadata schema, class or phase labels, grouping identity, sampling rate, units,
+and component order before writing training code.
+
+Use the bundled loader directly when the data match the formats below. When they
+do not, create an adapter in the user's experiment workspace that implements one
+of these boundaries:
+
+1. emit a normalized manifest that points to the original waveform records; or
+2. provide a dataset wrapper that returns the same `waveform` and `target`
+   tensors expected by the training loop, then wire it into an experiment-local
+   copy of the training entry point.
+
+The adapter boundary is:
+
+- `waveform`: `torch.float32` with shape `(3, window_length)`;
+- classification `target`: one `torch.long` class index with an explicit,
+  recorded name-to-index mapping;
+- picking `target`: `torch.float32` with shape `(5, window_length)` ordered as
+  `background`, `Pg`, `Sg`, `Pn`, `Sn`;
+- picking `phase_positions`: optional integer positions ordered as Pg, Sg, Pn,
+  Sn, using `-1` when a phase is absent.
+
+Keep source data immutable by default. Preserve source identifiers and record
+every mapping, filtering rule, resampling step, and label transformation. Test
+the adapter on representative records before a dry run.
 
 ## Supported storage
 
@@ -46,7 +76,7 @@ pg_sample,sg_sample,pn_sample,sn_sample
 ```
 
 The aliases `Pg_sample`, `trace_Pg_arrival_sample`, and corresponding Sg/Pn/Sn
-names are accepted. Generic `p_sample`/`s_sample` and PNW
+names are accepted. Generic `p_sample`/`s_sample` and
 `trace_P_arrival_sample`/`trace_S_arrival_sample` can map to Pg/Sg. This fallback
 is suitable only when regional P/S labels genuinely mean crustal Pg/Sg.
 
@@ -72,30 +102,3 @@ Before training:
    `max`, and `none`; use the same policy for train, validation, test, and inference.
 5. Reject or explicitly handle gaps, clipped traces, missing components, NaNs,
    and inconsistent units.
-
-## PNW recipe
-
-ModelScope paths:
-
-```text
-PNW/PNW.csv   53,466,340 bytes
-PNW/PNW.hdf5 67,343,580,072 bytes
-```
-
-The inspected metadata contains 183,909 traces at 100 Hz. `source_type` contains
-167,966 `earthquake` and 15,943 `explosion` rows, so a binary run should use
-weighted loss or a group-aware balanced sampler and report macro-F1. The richer
-`source_type_pnsn_label` field contains eight codes (`eq`, `px`, `lf`, `su`,
-`ex`, `qb`, `sn`, `uk`) with extreme tail-class imbalance; do not train it
-without first defining the scientific meaning and evaluation policy for each code.
-
-Prepare the binary manifest:
-
-```bash
-python <skill>/scripts/prepare_manifest.py \
-  --input data/seismic-ai-data/PNW/PNW.csv \
-  --output work/pnw.binary.csv \
-  --label-column source_type \
-  --labels earthquake explosion \
-  --group-column event_id
-```

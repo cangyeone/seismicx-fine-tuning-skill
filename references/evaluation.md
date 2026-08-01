@@ -10,9 +10,9 @@ Report at minimum:
   metadata exist;
 - calibration or threshold curves when outputs drive decisions.
 
-For PNW earthquake/explosion classification, do not use accuracy alone because
-the inspected class ratio is about 10.5:1. Keep event-group splits fixed across
-head-only, partial, and full fine-tuning comparisons.
+For imbalanced labels, do not use accuracy alone. Keep event-group splits and
+the class mapping fixed across head-only, partial, and full fine-tuning
+comparisons.
 
 ## Phase picking
 

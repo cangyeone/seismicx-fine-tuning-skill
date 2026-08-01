@@ -1,6 +1,6 @@
 ---
 name: seismicx-fine-tuning
-description: Prepare seismic waveform datasets and fine-tune, validate, or compare SeismicXM and PNSN models for phase picking/detection (Pg, Sg, Pn, Sn) and seismic event classification. Use for arbitrary user-defined classification labels, custom HDF5/NPY/NPZ datasets, SeismicX bucketed HDF5 metadata, selected subsets of the ModelScope cangyeone/Seismic-AI-Data collection (including PNW as an optional example), pretrained-checkpoint adaptation, frozen-head/full-model training, and reproducible seismic ML evaluation.
+description: Prepare and adapt user-defined seismic waveform datasets, then fine-tune, validate, or compare SeismicXM and PNSN models for phase picking/detection (Pg, Sg, Pn, Sn) and seismic event classification. Use for arbitrary classification ontologies and storage layouts, custom data adapters, built-in HDF5/NPY/NPZ and SeismicX bucketed HDF5 inputs, selected ModelScope cangyeone/Seismic-AI-Data subsets, pretrained-checkpoint adaptation, frozen-head/full-model training, and reproducible seismic ML evaluation.
 ---
 
 # SeismicX Fine-Tuning
@@ -20,7 +20,7 @@ Build reproducible single-station seismic fine-tuning runs around the upstream
 
 Read only the relevant detail before acting:
 
-- Custom data or ModelScope/PNW: [data-contract.md](references/data-contract.md)
+- User-defined data, adapters, or ModelScope subsets: [data-contract.md](references/data-contract.md)
 - SeismicXM training: [seismicxm.md](references/seismicxm.md)
 - PNSN training: [pnsn.md](references/pnsn.md)
 - Metrics and acceptance: [evaluation.md](references/evaluation.md)
@@ -44,13 +44,13 @@ Prefer user-local data. For Seismic-AI-Data, download explicit paths only:
 
 ```bash
 python <skill>/scripts/download_modelscope.py \
-  --paths PNW/PNW.csv \
+  --paths DATASET_SUBSET/metadata.csv \
   --local-dir data/seismic-ai-data
 ```
 
-PNW metadata is about 51 MiB; `PNW/PNW.hdf5` is about 62.7 GiB. Before adding
-`--allow-large`, confirm available disk space and the user's intent. Never fetch
-the full multi-terabyte collection by default.
+Before adding `--allow-large`, inspect the selected files, confirm available disk
+space, and confirm the user's intent. Never fetch the full multi-terabyte
+collection by default.
 
 ### 3. Set up pinned model code and weights
 
@@ -68,7 +68,13 @@ checksum before training. Do not commit SeismicXM checkpoints, downloaded data,
 or experiment outputs unless the user explicitly requests it and repository
 limits/licensing permit it.
 
-### 4. Build and validate a manifest
+### 4. Adapt, build, and validate the data interface
+
+Treat the bundled manifest loader as a fast path, not as a restriction on user
+data. First inspect representative metadata and waveform records. If the user's
+layout differs, create a small, documented adapter in the experiment workspace
+that maps their native schema to the model input and label contract. Do not
+rewrite or reorganize the source dataset unless the user requests it.
 
 Normalize metadata and create group-safe partitions:
 
@@ -76,7 +82,7 @@ Normalize metadata and create group-safe partitions:
 python <skill>/scripts/prepare_manifest.py \
   --input data/metadata.csv \
   --output work/manifest.csv \
-  --label-column source_type \
+  --label-column event_label \
   --group-column event_id
 
 python <skill>/scripts/validate_manifest.py \
